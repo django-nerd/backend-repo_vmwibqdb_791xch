@@ -1,8 +1,13 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Any, Dict
 
-app = FastAPI()
+from schemas import Contactmessage
+from database import create_document
+
+app = FastAPI(title="Katie SaaS API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,7 +19,7 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI Backend!"}
+    return {"message": "Katie API running"}
 
 @app.get("/api/hello")
 def hello():
@@ -63,6 +68,19 @@ def test_database():
     response["database_name"] = "✅ Set" if os.getenv("DATABASE_NAME") else "❌ Not Set"
     
     return response
+
+class ContactResponse(BaseModel):
+    id: str
+    message: str
+
+@app.post("/contact", response_model=ContactResponse)
+async def submit_contact(payload: Contactmessage):
+    """Accepts contact form submissions and stores them in MongoDB."""
+    try:
+        inserted_id = create_document("contactmessage", payload)
+        return {"id": inserted_id, "message": "Thanks! We'll be in touch soon."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
